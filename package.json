@@ -78,13 +78,15 @@
       "react": "$react"
     },
     "react-native": {
-      "@types/react": "$@types/react"
+      "@types/react": "$@types/react",
+      "react": "$react"
     },
     "@firebase/auth": {
       "@react-native-async-storage/async-storage": "$@react-native-async-storage/async-storage"
     },
     "@react-native/virtualized-lists": {
-      "@types/react": "$@types/react"
+      "@types/react": "$@types/react",
+      "react": "$react"
     }
   },
   "private": true
