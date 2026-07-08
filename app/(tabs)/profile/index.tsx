@@ -1,80 +1,218 @@
-/**
- * User Profile Screen — Placeholder for Phase 8/Profile
- */
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, LogOut, Settings, ShieldAlert, Award } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 import { useAuthStore } from '@/features/auth/stores/authStore';
+import { Avatar } from '@/shared/components/ui/Avatar';
+import { Card } from '@/shared/components/ui/Card';
+import { Button } from '@/shared/components/ui/Button';
+import { AchievementDocument } from '@/shared/types/database';
 import { colors } from '@/theme';
 
 export default function ProfileScreen() {
-  const { signOut, user } = useAuthStore();
+  const { signOut, user, studentProfile } = useAuthStore();
+  const [achievements, setAchievements] = useState<AchievementDocument[]>([]);
+  const [unlockedIds, setUnlockedIds] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+
+  // 1. Subscribe to all achievements
+  useEffect(() => {
+    const achQuery = query(collection(db, 'achievements'));
+    const unsubscribe = onSnapshot(achQuery, (snapshot) => {
+      const list: AchievementDocument[] = [];
+      snapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() } as AchievementDocument);
+      });
+      setAchievements(list);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error loading achievements templates:', error);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // 2. Subscribe to user's unlocked achievements
+  useEffect(() => {
+    if (!user) return;
+
+    const unlockedQuery = query(
+      collection(db, 'studentAchievements'),
+      where('userId', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(unlockedQuery, (snapshot) => {
+      const unlockedMap: Record<string, boolean> = {};
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        unlockedMap[data.achievementId] = true;
+      });
+      setUnlockedIds(unlockedMap);
+    }, (error) => {
+      console.error('Error loading student achievements:', error);
+    });
+
+    return unsubscribe;
+  }, [user]);
+
+  if (!studentProfile) {
+    return (
+      <SafeAreaView className="flex-1 bg-background justify-center items-center">
+        <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+        <Text className="font-nunito-bold text-text-secondary mt-3">Loading Profile...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="px-5 py-4 border-b border-border bg-surface flex-row items-center justify-between">
-        <Text className="font-nunito-bold text-heading-lg text-text">My Profile</Text>
-        <Pressable className="p-2 bg-surface-alt rounded-full">
-          <Settings size={22} color={colors.text.DEFAULT} strokeWidth={2.5} />
-        </Pressable>
+      <View className="px-5 py-4 border-b border-text bg-white">
+        <Text className="font-nunito-extrabold text-heading-lg text-text">🛡️ My Hero Profile</Text>
       </View>
 
-      <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false}>
-        {/* User Card */}
-        <View className="bg-surface border-2 border-border rounded-card p-6 items-center shadow-card mb-6">
-          <View className="w-24 h-24 rounded-full bg-purple/10 border-4 border-purple items-center justify-center mb-4">
-            <Text className="text-5xl">🦸</Text>
+      <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false}>
+        
+        {/* Student Avatar Card */}
+        <Card variant="default" className="bg-white border-2 border-text rounded-3xl p-6 items-center shadow-sm mb-6">
+          <View className="mb-4">
+            <Card variant="default" className="p-1 bg-slate-50 rounded-full border-2 border-text shadow-sm">
+              <Avatar config={studentProfile.avatar} size={90} />
+            </Card>
           </View>
-          <Text className="font-nunito-bold text-heading-lg text-text">Health Hero</Text>
-          <Text className="font-nunito text-body-md text-text-secondary mb-4">{user?.email}</Text>
           
-          <View className="flex-row gap-6 mt-2 border-t border-border pt-4 w-full justify-around">
+          <Text className="font-nunito-extrabold text-heading-lg text-text">
+            {studentProfile.nickname}
+          </Text>
+          <Text className="font-nunito-bold text-xs text-text-secondary mt-1 mb-4">
+            {user?.email}
+          </Text>
+          
+          {/* Gaming Stats Box */}
+          <View className="flex-row mt-2 border-t border-slate-100 pt-4 w-full justify-around">
             <View className="items-center">
-              <Text className="font-nunito-extrabold text-heading-sm text-primary">Level 1</Text>
-              <Text className="font-nunito text-body-sm text-text-secondary">Rank</Text>
+              <Text className="font-nunito-extrabold text-heading-sm text-primary">
+                Level {studentProfile.level || 1}
+              </Text>
+              <Text className="font-nunito-bold text-xs text-text-secondary mt-0.5">Rank</Text>
             </View>
             <View className="items-center">
-              <Text className="font-nunito-extrabold text-heading-sm text-accent-dark">0</Text>
-              <Text className="font-nunito text-body-sm text-text-secondary">Coins</Text>
+              <Text className="font-nunito-extrabold text-heading-sm text-yellow-500">
+                {studentProfile.coins || 0}
+              </Text>
+              <Text className="font-nunito-bold text-xs text-text-secondary mt-0.5">Coins</Text>
             </View>
             <View className="items-center">
-              <Text className="font-nunito-extrabold text-heading-sm text-purple">0</Text>
-              <Text className="font-nunito text-body-sm text-text-secondary">XP</Text>
+              <Text className="font-nunito-extrabold text-heading-sm text-purple-600">
+                {studentProfile.totalXP || 0}
+              </Text>
+              <Text className="font-nunito-bold text-xs text-text-secondary mt-0.5">XP Total</Text>
             </View>
           </View>
-        </View>
+        </Card>
 
-        {/* Portals Access (Quick Actions) */}
-        <Text className="font-nunito-bold text-heading-sm text-text mb-3">Portals</Text>
-        <View className="bg-surface border-2 border-border rounded-card p-4 gap-3 mb-6 shadow-card">
-          <Pressable className="flex-row items-center justify-between p-3 bg-surface-alt rounded-button">
-            <View className="flex-row items-center gap-3">
-              <Award size={20} color={colors.primary.DEFAULT} strokeWidth={2.5} />
-              <Text className="font-nunito-bold text-body-lg text-text">Teacher Portal</Text>
-            </View>
-          </Pressable>
-          <Pressable className="flex-row items-center justify-between p-3 bg-surface-alt rounded-button">
-            <View className="flex-row items-center gap-3">
-              <User size={20} color={colors.purple.DEFAULT} strokeWidth={2.5} />
-              <Text className="font-nunito-bold text-body-lg text-text">Parent Portal</Text>
-            </View>
-          </Pressable>
-          <Pressable className="flex-row items-center justify-between p-3 bg-surface-alt rounded-button">
-            <View className="flex-row items-center gap-3">
-              <ShieldAlert size={20} color={colors.secondary.DEFAULT} strokeWidth={2.5} />
-              <Text className="font-nunito-bold text-body-lg text-text">Admin Panel</Text>
-            </View>
-          </Pressable>
-        </View>
+        {/* Badges / Achievements Grid Section */}
+        <Text className="font-nunito-extrabold text-heading-sm text-text mb-3">
+          🏆 Unlocked Badges
+        </Text>
 
-        {/* Logout Button */}
-        <Pressable
+        {loading ? (
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} className="my-6" />
+        ) : achievements.length === 0 ? (
+          <Card variant="default" className="p-5 bg-white border-2 border-text rounded-3xl mb-6 items-center">
+            <Text className="font-nunito-bold text-xs text-text-secondary">No badges found.</Text>
+          </Card>
+        ) : (
+          <View className="mb-6">
+            {achievements.map((ach) => {
+              const isUnlocked = unlockedIds[ach.id!] || false;
+              return (
+                <Card 
+                  key={ach.id}
+                  variant="default"
+                  className="p-4 mb-3 bg-white border-2 border-text rounded-3xl flex-row items-center shadow-sm"
+                  style={{
+                    opacity: isUnlocked ? 1 : 0.6,
+                    backgroundColor: isUnlocked ? '#FFF' : '#F1F5F9',
+                    borderColor: isUnlocked ? colors.text.DEFAULT : '#94A3B8',
+                  }}
+                >
+                  <View 
+                    style={{
+                      width: 54,
+                      height: 54,
+                      borderRadius: 27,
+                      backgroundColor: isUnlocked ? colors.primary.light : '#CBD5E1',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 2,
+                      borderColor: isUnlocked ? colors.text.DEFAULT : '#94A3B8',
+                    }}
+                  >
+                    <Text className="text-3xl">{isUnlocked ? ach.icon : '🔒'}</Text>
+                  </View>
+
+                  <View className="flex-1 ml-4 mr-2">
+                    <Text 
+                      className={`font-nunito-extrabold text-body-lg ${isUnlocked ? 'text-text' : 'text-slate-500'}`}
+                    >
+                      {ach.title}
+                    </Text>
+                    <Text 
+                      className={`font-nunito-bold text-xs ${isUnlocked ? 'text-text-secondary' : 'text-slate-400'} mt-0.5`}
+                      numberOfLines={2}
+                    >
+                      {ach.description}
+                    </Text>
+                  </View>
+
+                  {isUnlocked && (
+                    <View className="bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                      <Text className="font-nunito-extrabold text-[9px] text-emerald-800">UNLOCKED</Text>
+                    </View>
+                  )}
+                </Card>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Portal Links (Mock placeholder for Parent/Teacher pages) */}
+        <Text className="font-nunito-extrabold text-heading-sm text-text mb-3">
+          🔑 Portal Access
+        </Text>
+        <Card variant="default" className="p-4 bg-white border-2 border-text rounded-3xl mb-6 shadow-sm gap-3">
+          <TouchableOpacity 
+            onPress={() => router.push('/(teacher)')}
+            activeOpacity={0.8} 
+            className="flex-row items-center p-3 bg-slate-50 border border-slate-200 rounded-2xl"
+          >
+            <Text className="text-xl mr-3">🎒</Text>
+            <Text className="font-nunito-extrabold text-body-md text-text">Teacher Dashboard</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => router.push('/(parent)')}
+            activeOpacity={0.8} 
+            className="flex-row items-center p-3 bg-slate-50 border border-slate-200 rounded-2xl"
+          >
+            <Text className="text-xl mr-3">👨‍👩‍👧</Text>
+            <Text className="font-nunito-extrabold text-body-md text-text">Parent Dashboard</Text>
+          </TouchableOpacity>
+        </Card>
+
+        {/* Bulletproof Log Out Button */}
+        <Button
+          variant="secondary"
+          size="lg"
           onPress={() => signOut()}
-          className="bg-secondary rounded-button py-4 items-center mb-8 flex-row justify-center gap-2 border-2 border-secondary-dark"
+          className="mb-10 w-full"
         >
-          <LogOut size={20} color={colors.text.onColor} strokeWidth={2.5} />
-          <Text className="font-nunito-bold text-label text-text-oncolor">Log Out</Text>
-        </Pressable>
+          Log Out
+        </Button>
+        
       </ScrollView>
     </SafeAreaView>
   );

@@ -26,6 +26,8 @@ import '../src/theme/global.css';
 // Prevent splash screen from hiding until we're ready
 SplashScreen.preventAutoHideAsync();
 
+import { NotificationProvider } from '@/shared/components/ui/NotificationContext';
+
 export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [appReady, setAppReady] = useState(false);
@@ -134,8 +136,10 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutReady}>
       <QueryClientProvider client={queryClient}>
-        <StatusBar style="dark" backgroundColor={colors.background} />
-        <Slot />
+        <NotificationProvider>
+          <StatusBar style="dark" backgroundColor={colors.background} />
+          <Slot />
+        </NotificationProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

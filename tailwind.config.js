@@ -8,68 +8,51 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Primary Palette
-        primary: {
-          DEFAULT: '#4CAF50',
-          light: '#81C784',
-          dark: '#388E3C',
-        },
-        secondary: {
-          DEFAULT: '#FF6B6B',
-          light: '#FF8A8A',
-          dark: '#E55555',
-        },
-        accent: {
-          DEFAULT: '#FFD93D',
-          light: '#FFE566',
-          dark: '#FFB300',
-        },
-        purple: {
-          DEFAULT: '#7C4DFF',
-          light: '#B388FF',
-          dark: '#651FFF',
-        },
-        teal: {
-          DEFAULT: '#26C6DA',
-          light: '#80DEEA',
-          dark: '#00ACC1',
-        },
-        orange: {
-          DEFAULT: '#FF9800',
-          light: '#FFB74D',
-          dark: '#F57C00',
-        },
-        pink: {
-          DEFAULT: '#F06292',
-          light: '#F48FB1',
-          dark: '#EC407A',
-        },
+        // Flat colors for NativeWind v4 compatibility
+        primary: '#4CAF50',
+        'primary-light': '#81C784',
+        'primary-dark': '#388E3C',
 
-        // Surfaces
+        secondary: '#FF6B6B',
+        'secondary-light': '#FF8A8A',
+        'secondary-dark': '#E55555',
+
+        accent: '#FFD93D',
+        'accent-light': '#FFE566',
+        'accent-dark': '#FFB300',
+
+        purple: '#7C4DFF',
+        'purple-light': '#B388FF',
+        'purple-dark': '#651FFF',
+
+        teal: '#26C6DA',
+        'teal-light': '#80DEEA',
+        'teal-dark': '#00ACC1',
+
+        orange: '#FF9800',
+        'orange-light': '#FFB74D',
+        'orange-dark': '#F57C00',
+
+        pink: '#F06292',
+        'pink-light': '#F48FB1',
+        'pink-dark': '#EC407A',
+
         background: '#F8F9FF',
-        surface: {
-          DEFAULT: '#FFFFFF',
-          alt: '#EEF1FF',
-        },
 
-        // Text
-        text: {
-          DEFAULT: '#2D3436',
-          secondary: '#636E72',
-          oncolor: '#FFFFFF',
-        },
+        surface: '#FFFFFF',
+        'surface-alt': '#EEF1FF',
 
-        // Semantic
+        text: '#2D3436',
+        'text-secondary': '#636E72',
+        'text-oncolor': '#FFFFFF',
+
         success: '#4CAF50',
         error: '#FF5252',
         warning: '#FFA726',
         info: '#42A5F5',
 
-        // Borders
-        border: {
-          DEFAULT: '#E8ECF4',
-          focus: '#4CAF50',
-        },
+        border: '#E8ECF4',
+        'border-focus': '#4CAF50',
       },
       fontFamily: {
         'nunito': ['Nunito_400Regular'],

@@ -43,17 +43,27 @@ export const Button: React.FC<ButtonProps> = ({
   // Base styling mapped to NativeWind classes
   let bgClass = 'bg-primary border-primary-dark';
   let textClass = 'text-text-oncolor';
+  let fallbackBg = '#4CAF50';
+  let fallbackBorder = '#388E3C';
 
   if (variant === 'secondary') {
     bgClass = 'bg-secondary border-secondary-dark';
+    fallbackBg = '#FF6B6B';
+    fallbackBorder = '#E55555';
   } else if (variant === 'accent') {
     bgClass = 'bg-accent border-accent-dark';
     textClass = 'text-text';
+    fallbackBg = '#FFD93D';
+    fallbackBorder = '#FFB300';
   } else if (variant === 'purple') {
     bgClass = 'bg-purple border-purple-dark';
+    fallbackBg = '#7C4DFF';
+    fallbackBorder = '#651FFF';
   } else if (variant === 'outline') {
     bgClass = 'bg-transparent border-border';
     textClass = 'text-text-secondary';
+    fallbackBg = 'transparent';
+    fallbackBorder = '#E8ECF4';
   }
 
   let sizeClass = 'py-3.5 px-6 rounded-button border-b-4';
@@ -74,7 +84,15 @@ export const Button: React.FC<ButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={isDisabled}
-      style={[animatedStyle, style]}
+      style={[
+        {
+          backgroundColor: fallbackBg,
+          borderBottomColor: fallbackBorder,
+          borderStyle: 'solid',
+        },
+        animatedStyle,
+        style,
+      ]}
       className={`${sizeClass} ${bgClass} items-center justify-center flex-row ${isDisabled ? 'opacity-60' : 'active:translate-y-[2px]'}`}
       {...props}
     >

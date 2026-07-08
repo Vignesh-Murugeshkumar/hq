@@ -17,7 +17,7 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { control, handleSubmit, formState: { errors } } = useForm<SignUpFormData>({
+  const { control, handleSubmit, watch, formState: { errors } } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
       email: '',
@@ -25,6 +25,23 @@ export default function SignUpScreen() {
       confirmPassword: '',
     },
   });
+
+  const passwordValue = watch('password', '');
+
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, label: '', color: '#CBD5E1' };
+    let score = 0;
+    if (pass.length >= 6) score += 1;
+    if (pass.length >= 10) score += 1;
+    if (/[a-zA-Z]/.test(pass) && /[0-9]/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+
+    if (score <= 1) return { score, label: 'Weak Password', color: '#EF4444' };
+    if (score <= 3) return { score, label: 'Medium Password', color: '#F59E0B' };
+    return { score, label: 'Strong Password ✓', color: '#10B981' };
+  };
+
+  const strength = getPasswordStrength(passwordValue);
 
   const onSubmit = async (data: SignUpFormData) => {
     try {
@@ -136,6 +153,24 @@ export default function SignUpScreen() {
             <Text className="font-nunito-semibold text-body-sm text-secondary mb-3 -mt-2">
               {errors.password.message}
             </Text>
+          )}
+
+          {/* Password Strength Indicator */}
+          {passwordValue.length > 0 && (
+            <View className="mb-4">
+              <View className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200 mb-1.5">
+                <View 
+                  className="h-full rounded-full" 
+                  style={{ 
+                    width: `${(strength.score / 4) * 100}%`, 
+                    backgroundColor: strength.color 
+                  }} 
+                />
+              </View>
+              <Text className="font-nunito-bold text-xs" style={{ color: strength.color }}>
+                {strength.label}
+              </Text>
+            </View>
           )}
 
           {/* Confirm Password Input */}

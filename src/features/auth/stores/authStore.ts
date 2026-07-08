@@ -15,8 +15,9 @@ import {
   sendPasswordResetEmail,
   User,
 } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { ProfileDocument, AvatarConfig } from '@/shared/types/database';
 
 interface UserProfile {
   email: string;
@@ -34,6 +35,7 @@ interface UserProfile {
 interface AuthState {
   user: User | null;
   profile: UserProfile | null;
+  studentProfile: ProfileDocument | null;
   isLoading: boolean;
   profileLoading: boolean;
   error: string | null;
@@ -45,24 +47,38 @@ interface AuthState {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   sendVerification: () => Promise<void>;
+  completeOnboarding: (
+    nickname: string,
+    avatar: AvatarConfig,
+    grade: string,
+    interests: string[],
+    dailyGoalXP: number
+  ) => Promise<void>;
+  updateStudentProfile: (updates: Partial<ProfileDocument>) => Promise<void>;
   clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
+  studentProfile: null,
   isLoading: true,
   profileLoading: false,
   error: null,
 
   initialize: () => {
     let unsubscribeProfile: (() => void) | null = null;
+    let unsubscribeStudentProfile: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      // Clean up previous profile listener if any
+      // Clean up previous profile listeners if any
       if (unsubscribeProfile) {
         unsubscribeProfile();
         unsubscribeProfile = null;
+      }
+      if (unsubscribeStudentProfile) {
+        unsubscribeStudentProfile();
+        unsubscribeStudentProfile = null;
       }
 
       if (user) {
@@ -74,18 +90,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           userDocRef,
           (docSnap) => {
             if (docSnap.exists()) {
-              set({ profile: docSnap.data() as UserProfile, profileLoading: false });
+              const userData = docSnap.data() as UserProfile;
+              set({ profile: userData, profileLoading: false });
+
+              // Subscribe to student profile statistics if user is a student
+              if (userData.role === 'student' && !unsubscribeStudentProfile) {
+                const studentDocRef = doc(db, 'profiles', user.uid);
+                unsubscribeStudentProfile = onSnapshot(
+                  studentDocRef,
+                  (studentSnap) => {
+                    if (studentSnap.exists()) {
+                      set({ studentProfile: studentSnap.data() as ProfileDocument });
+                    } else {
+                      set({ studentProfile: null });
+                    }
+                  },
+                  (error) => {
+                    console.error('Error fetching student profile snapshot:', error);
+                    set({ studentProfile: null });
+                  }
+                );
+              }
             } else {
-              set({ profile: null, profileLoading: false });
+              set({ profile: null, profileLoading: false, studentProfile: null });
             }
           },
           (error) => {
             console.error('Error fetching user profile snapshot:', error);
-            set({ profile: null, profileLoading: false });
+            set({ profile: null, profileLoading: false, studentProfile: null });
           }
         );
       } else {
-        set({ user: null, profile: null, isLoading: false, profileLoading: false });
+        set({ user: null, profile: null, studentProfile: null, isLoading: false, profileLoading: false });
       }
     });
 
@@ -93,6 +129,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       unsubscribeAuth();
       if (unsubscribeProfile) {
         unsubscribeProfile();
+      }
+      if (unsubscribeStudentProfile) {
+        unsubscribeStudentProfile();
       }
     };
   },
@@ -150,6 +189,66 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await sendEmailVerification(user);
     } catch (error: any) {
       set({ error: 'Failed to send verification email' });
+      throw error;
+    }
+  },
+
+  completeOnboarding: async (
+    nickname: string,
+    avatar: AvatarConfig,
+    grade: string,
+    interests: string[],
+    dailyGoalXP: number
+  ) => {
+    const { user } = get();
+    if (!user) throw new Error('No authenticated user found');
+
+    try {
+      set({ isLoading: true, error: null });
+      const userRef = doc(db, 'users', user.uid);
+      const profileRef = doc(db, 'profiles', user.uid);
+
+      // Create student profile in profiles/{userId}
+      await setDoc(profileRef, {
+        nickname,
+        avatar,
+        grade,
+        interests,
+        dailyGoalXP,
+        totalXP: 0,
+        level: 1,
+        coins: 0,
+        energy: 100,
+        streakCount: 0,
+        lastStreakActiveDate: null,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Update user document to set isOnboarded = true
+      await updateDoc(userRef, {
+        isOnboarded: true,
+      });
+
+      set({ isLoading: false });
+    } catch (error: any) {
+      console.error('Failed to complete onboarding:', error);
+      const message = error.message || 'Failed to complete onboarding';
+      set({ error: message, isLoading: false });
+      throw new Error(message);
+    }
+  },
+
+  updateStudentProfile: async (updates: Partial<ProfileDocument>) => {
+    const { user } = get();
+    if (!user) return;
+    try {
+      const profileRef = doc(db, 'profiles', user.uid);
+      await updateDoc(profileRef, {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Failed to update student profile:', error);
       throw error;
     }
   },

@@ -20,7 +20,7 @@
  */
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
@@ -52,8 +52,22 @@ const initializeAuthPlatform = () => {
 
 export const auth = initializeAuthPlatform();
 
-// Initialize Firestore
-export const db = getFirestore(app);
+// Initialize Firestore with robust local persistent cache (singleton pattern safe for hot reloads)
+const getFirestorePlatform = () => {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch (err) {
+    // Fallback to get existing initialized firestore instance on hot-reload
+    const { getFirestore } = require('firebase/firestore');
+    return getFirestore(app);
+  }
+};
+
+export const db = getFirestorePlatform();
 
 // Initialize Storage
 export const storage = getStorage(app);

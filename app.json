@@ -23,7 +23,10 @@
         "backgroundColor": "#F8F9FF"
       },
       "package": "com.healthquest.app",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -65,8 +68,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "cfeb7fd2-ff04-438b-b795-2cd8132908ec"
       }
-    }
+    },
+    "owner": "vignesh-murugeshkumar"
   }
 }
