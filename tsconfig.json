@@ -13,9 +13,15 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@app/*": ["./app/*"],
-      "@assets/*": ["./assets/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@app/*": [
+        "./app/*"
+      ],
+      "@assets/*": [
+        "./assets/*"
+      ]
     }
   },
   "include": [
@@ -28,5 +34,6 @@
   "exclude": [
     "node_modules",
     "functions"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }

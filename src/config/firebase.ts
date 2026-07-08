@@ -19,10 +19,11 @@
  * 8. Copy the web app config values to .env file
  */
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 const firebaseConfig = {
@@ -38,10 +39,18 @@ const firebaseConfig = {
 // Initialize Firebase (singleton pattern — safe for hot reloads)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Auth with React Native persistence (sessions survive app restarts)
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-});
+// Initialize Auth in a platform-agnostic way (supports Web, SSR Node, and Native)
+const initializeAuthPlatform = () => {
+  if (Platform.OS === 'web') {
+    return getAuth(app);
+  } else {
+    return initializeAuth(app, {
+      persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+    });
+  }
+};
+
+export const auth = initializeAuthPlatform();
 
 // Initialize Firestore
 export const db = getFirestore(app);

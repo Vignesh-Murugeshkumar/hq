@@ -54,7 +54,8 @@
         {
           "photosPermission": "HealthQuest needs access to your photos to upload lesson videos."
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true
