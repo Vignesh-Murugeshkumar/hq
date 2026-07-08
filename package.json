@@ -76,6 +76,15 @@
   "overrides": {
     "lucide-react-native": {
       "react": "$react"
+    },
+    "react-native": {
+      "@types/react": "$@types/react"
+    },
+    "@firebase/auth": {
+      "@react-native-async-storage/async-storage": "$@react-native-async-storage/async-storage"
+    },
+    "@react-native/virtualized-lists": {
+      "@types/react": "$@types/react"
     }
   },
   "private": true
