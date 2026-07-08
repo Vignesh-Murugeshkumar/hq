@@ -3,7 +3,7 @@ import { View, ViewProps, ViewStyle } from 'react-native';
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
-  variant?: 'default' | 'accent' | 'purple' | 'success' | 'danger';
+  variant?: 'default' | 'accent' | 'purple' | 'success' | 'danger' | 'pressable';
   active?: boolean;
   style?: ViewStyle;
 }
