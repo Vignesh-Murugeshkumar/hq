@@ -1,0 +1,75 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      firebase_api_key:
+        description: 'EXPO_PUBLIC_FIREBASE_API_KEY'
+        required: true
+      firebase_auth_domain:
+        description: 'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN'
+        required: true
+      firebase_project_id:
+        description: 'EXPO_PUBLIC_FIREBASE_PROJECT_ID'
+        required: true
+      firebase_storage_bucket:
+        description: 'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET'
+        required: true
+      firebase_messaging_sender_id:
+        description: 'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'
+        required: true
+      firebase_app_id:
+        description: 'EXPO_PUBLIC_FIREBASE_APP_ID'
+        required: true
+      firebase_measurement_id:
+        description: 'EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID'
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create environment configuration
+        run: |
+          echo "EXPO_PUBLIC_FIREBASE_API_KEY=${{ github.event.inputs.firebase_api_key }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ github.event.inputs.firebase_auth_domain }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_PROJECT_ID=${{ github.event.inputs.firebase_project_id }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ github.event.inputs.firebase_storage_bucket }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ github.event.inputs.firebase_messaging_sender_id }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_APP_ID=${{ github.event.inputs.firebase_app_id }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ github.event.inputs.firebase_measurement_id }}" >> .env
+
+      - name: Prebuild Expo project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build Android Release APK
+        run: |
+          cd android
+          ./gradlew assembleRelease
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: healthquest-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
