@@ -27,32 +27,71 @@ on:
 
 jobs:
   build:
+    name: Build Android Debug Bundle
     runs-on: ubuntu-latest
     steps:
+      # 1. Checkout repository code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Node.js (Expo stable LTS version 20) with caching
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
 
+      # 3. Setup JDK 17 (Zulu distribution)
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
+      # 4. Setup Android SDK and accept licenses
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      # 5. Setup Gradle and wrapper caching to speed up builds
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
+
+      # 6. Validate workflow inputs before starting build steps
+      - name: Validate environment inputs
+        run: |
+          echo "Validating Firebase environment variables..."
+          if [ -z "${{ github.event.inputs.firebase_api_key }}" ] || \
+             [ -z "${{ github.event.inputs.firebase_auth_domain }}" ] || \
+             [ -z "${{ github.event.inputs.firebase_project_id }}" ] || \
+             [ -z "${{ github.event.inputs.firebase_storage_bucket }}" ] || \
+             [ -z "${{ github.event.inputs.firebase_messaging_sender_id }}" ] || \
+             [ -z "${{ github.event.inputs.firebase_app_id }}" ]; then
+            echo "::error::One or more required Firebase inputs are missing."
+            exit 1
+          fi
+          echo "Validation successful!"
+
+      # 7. Validate GOOGLE_SERVICES_JSON exists in GitHub Secrets
+      - name: Validate GOOGLE_SERVICES_JSON secret
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          echo "Validating GOOGLE_SERVICES_JSON secret..."
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::The GOOGLE_SERVICES_JSON secret is missing from GitHub repository settings."
+            exit 1
+          fi
+          echo "Secret validation successful!"
+
+      # 8. Install dependencies deterministically
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      # 9. Create local environment configuration (.env)
       - name: Create environment configuration
         run: |
-          echo "EXPO_PUBLIC_FIREBASE_API_KEY=${{ github.event.inputs.firebase_api_key }}" >> .env
+          echo "Creating .env file..."
+          echo "EXPO_PUBLIC_FIREBASE_API_KEY=${{ github.event.inputs.firebase_api_key }}" > .env
           echo "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ github.event.inputs.firebase_auth_domain }}" >> .env
           echo "EXPO_PUBLIC_FIREBASE_PROJECT_ID=${{ github.event.inputs.firebase_project_id }}" >> .env
           echo "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ github.event.inputs.firebase_storage_bucket }}" >> .env
@@ -60,28 +99,42 @@ jobs:
           echo "EXPO_PUBLIC_FIREBASE_APP_ID=${{ github.event.inputs.firebase_app_id }}" >> .env
           echo "EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ github.event.inputs.firebase_measurement_id }}" >> .env
 
+      # 10. Write root google-services.json from secret
       - name: Create google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "GOOGLE_SERVICES_JSON secret is missing"
-            exit 1
-          fi
+          echo "Writing google-services.json to root..."
           printf '%s' "$GOOGLE_SERVICES_JSON" > google-services.json
 
+      # 11. Run Expo prebuild to generate native Android folders
       - name: Prebuild Expo project
         run: npx expo prebuild --platform android --no-install
 
+      # 12. Copy google-services.json into android/app module
       - name: Inject google-services.json into android/app
         run: |
+          echo "Injecting google-services.json into android/app directory..."
+          mkdir -p android/app
           cp google-services.json android/app/google-services.json
 
+      # 13. Run Gradle task with stacktrace diagnostics enabled
       - name: Build Android Debug APK
         run: |
           cd android
           ./gradlew assembleDebug --stacktrace --warning-mode all
 
+      # 14. Verify APK was generated successfully before uploading
+      - name: Verify APK existence
+        run: |
+          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "::error::APK file was not generated at expected path: $APK_PATH"
+            exit 1
+          fi
+          echo "APK successfully verified!"
+
+      # 15. Upload the compiled APK artifact
       - name: Upload Android Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
