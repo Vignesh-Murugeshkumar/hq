@@ -71,7 +71,7 @@ jobs:
           fi
           echo "Validation successful!"
 
-      # 7. Validate GOOGLE_SERVICES_JSON exists in GitHub Secrets
+      # 7. Validate GOOGLE_SERVICES_JSON secret
       - name: Validate GOOGLE_SERVICES_JSON secret
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -107,9 +107,9 @@ jobs:
           echo "Writing google-services.json to root..."
           printf '%s' "$GOOGLE_SERVICES_JSON" > google-services.json
 
-      # 11. Run Expo prebuild to generate native Android folders
+      # 11. Run Expo prebuild cleanly to generate native Android folders
       - name: Prebuild Expo project
-        run: npx expo prebuild --platform android --no-install
+        run: npx expo prebuild --platform android --clean --no-install
 
       # 12. Copy google-services.json into android/app module
       - name: Inject google-services.json into android/app
@@ -118,19 +118,29 @@ jobs:
           mkdir -p android/app
           cp google-services.json android/app/google-services.json
 
-      # 13. Verify that all required native Android files exist
+      # 13. Verify that all required native Android files exist (supporting both Groovy and Kotlin DSLs)
       - name: Verify generated Android project files
         run: |
           echo "Verifying required generated native files..."
-          for file in "android/build.gradle" "android/settings.gradle" "android/gradle.properties" "android/app/build.gradle" "android/app/google-services.json"; do
-            if [ ! -f "$file" ]; then
-              echo "::error::Required generated native file is missing: $file"
-              exit 1
-            fi
-            echo "✓ $file exists"
-          done
+          
+          check_file() {
+            for f in "$@"; do
+              if [ -f "$f" ]; then
+                echo "✓ $f exists"
+                return 0
+              fi
+            done
+            echo "::error::Required generated native files not found: $@"
+            exit 1
+          }
+          
+          check_file "android/build.gradle" "android/build.gradle.kts"
+          check_file "android/settings.gradle" "android/settings.gradle.kts"
+          check_file "android/gradle.properties"
+          check_file "android/app/build.gradle" "android/app/build.gradle.kts"
+          check_file "android/app/google-services.json"
 
-      # 14. Parse and validate content of android/app/google-services.json
+      # 14. Verify and parse android/app/google-services.json for validity
       - name: Validate Firebase google-services.json
         run: |
           node -e "
@@ -166,43 +176,92 @@ jobs:
               process.exit(1);
             }
             
-            const client = json.client[0];
-            if (!client.client_info || !client.client_info.android_client_info || !client.client_info.android_client_info.package_name) {
-              console.error('::error::Missing client_info, android_client_info, or package_name in Firebase config.');
-              process.exit(1);
-            }
-            
-            console.log('Firebase project_id: ' + json.project_info.project_id);
-            console.log('Firebase package_name: ' + client.client_info.android_client_info.package_name);
             console.log('Firebase validation successfully passed!');
           "
 
-      # 15. Verify that Firebase package matches the Android applicationId
+      # 15. Verify that Firebase package matches Android package & app.json configuration
       - name: Validate Firebase package matches Android package
         run: |
           node -e "
             const fs = require('fs');
             
-            const firebaseConfig = JSON.parse(fs.readFileSync('android/app/google-services.json', 'utf8'));
-            const firebasePackage = firebaseConfig.client[0].client_info.android_client_info.package_name;
+            // 1. Read app.json config package name
+            let appJsonPackage;
+            try {
+              const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+              appJsonPackage = appJson.expo && appJson.expo.android && appJson.expo.android.package;
+            } catch (err) {
+              console.error('::error::Failed to read or parse app.json: ' + err.message);
+              process.exit(1);
+            }
             
-            const gradleContent = fs.readFileSync('android/app/build.gradle', 'utf8');
-            const appIdMatch = gradleContent.match(/applicationId\s+['\"]([^'\"]+)['\"]/);
-            const namespaceMatch = gradleContent.match(/namespace\s+['\"]([^'\"]+)['\"]/);
-            const gradlePackage = appIdMatch ? appIdMatch[1] : (namespaceMatch ? namespaceMatch[1] : null);
+            if (!appJsonPackage) {
+              console.error('::error::expo.android.package is not defined in app.json');
+              process.exit(1);
+            }
+            
+            // 2. Read google-services.json and extract all clients package names
+            let googleServices;
+            try {
+              googleServices = JSON.parse(fs.readFileSync('android/app/google-services.json', 'utf8'));
+            } catch (err) {
+              console.error('::error::Failed to read or parse android/app/google-services.json: ' + err.message);
+              process.exit(1);
+            }
+            
+            if (!googleServices.client || !Array.isArray(googleServices.client)) {
+              console.error('::error::google-services.json is missing the client array');
+              process.exit(1);
+            }
+            
+            const firebasePackages = [];
+            for (const client of googleServices.client) {
+              if (client.client_info && client.client_info.android_client_info && client.client_info.android_client_info.package_name) {
+                firebasePackages.push(client.client_info.android_client_info.package_name);
+              }
+            }
+            
+            if (firebasePackages.length === 0) {
+              console.error('::error::No Android app packages found in google-services.json');
+              process.exit(1);
+            }
+            
+            // 3. Read generated Android package name from build.gradle / build.gradle.kts
+            let gradlePackage;
+            const gradlePath = fs.existsSync('android/app/build.gradle') ? 'android/app/build.gradle' : (fs.existsSync('android/app/build.gradle.kts') ? 'android/app/build.gradle.kts' : null);
+            if (!gradlePath) {
+              console.error('::error::android/app/build.gradle (.kts) not found');
+              process.exit(1);
+            }
+            
+            try {
+              const gradleContent = fs.readFileSync(gradlePath, 'utf8');
+              const appIdMatch = gradleContent.match(/applicationId\s+['\"]([^'\"]+)['\"]/);
+              const namespaceMatch = gradleContent.match(/namespace\s+['\"]([^'\"]+)['\"]/);
+              gradlePackage = appIdMatch ? appIdMatch[1] : (namespaceMatch ? namespaceMatch[1] : null);
+            } catch (err) {
+              console.error('::error::Failed to read android/app/build.gradle: ' + err.message);
+              process.exit(1);
+            }
             
             if (!gradlePackage) {
-              console.error('::error::Could not extract applicationId or namespace from android/app/build.gradle');
+              console.error('::error::Could not extract applicationId or namespace from ' + gradlePath);
               process.exit(1);
             }
             
             console.log('Firebase package:');
-            console.log(firebasePackage);
+            console.log(gradlePackage);
             console.log('\nGradle package:');
             console.log(gradlePackage);
             
-            if (firebasePackage !== gradlePackage) {
-              console.error('::error::Package names do not match!');
+            if (appJsonPackage !== gradlePackage) {
+              console.error('::error::Mismatch: Expo app.json package (' + appJsonPackage + ') does not match Android Gradle package (' + gradlePackage + ').');
+              process.exit(1);
+            }
+            
+            const matchFound = firebasePackages.includes(gradlePackage);
+            if (!matchFound) {
+              console.error('::error::Mismatch: None of the Firebase client packages in google-services.json match the Android package name (' + gradlePackage + ').');
               process.exit(1);
             }
             
@@ -233,7 +292,7 @@ jobs:
       - name: Print Gradle configuration files
         run: |
           echo "=== android/build.gradle ==="
-          cat android/build.gradle
+          cat android/build.gradle 2>/dev/null || cat android/build.gradle.kts
           echo "=== android/gradle.properties ==="
           cat android/gradle.properties
 
@@ -241,7 +300,10 @@ jobs:
       - name: Build Android Debug APK
         run: |
           cd android
-          ./gradlew assembleDebug --stacktrace --info --warning-mode all
+          ./gradlew assembleDebug \
+            --stacktrace \
+            --info \
+            --warning-mode all
 
       # 19. Verify APK was generated successfully before uploading
       - name: Verify APK existence
@@ -253,7 +315,7 @@ jobs:
           fi
           echo "APK successfully verified!"
 
-      # 20. Upload compiled Gradle reports if build execution fails
+      # 20. Upload compiled Gradle reports and logs if build execution fails
       - name: Upload Gradle Reports on Failure
         if: failure()
         uses: actions/upload-artifact@v4
