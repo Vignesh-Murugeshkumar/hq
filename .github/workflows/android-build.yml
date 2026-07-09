@@ -118,7 +118,118 @@ jobs:
           mkdir -p android/app
           cp google-services.json android/app/google-services.json
 
-      # 13. Print generated Gradle files for debugging
+      # 13. Verify that all required native Android files exist
+      - name: Verify generated Android project files
+        run: |
+          echo "Verifying required generated native files..."
+          for file in "android/build.gradle" "android/settings.gradle" "android/gradle.properties" "android/app/build.gradle" "android/app/google-services.json"; do
+            if [ ! -f "$file" ]; then
+              echo "::error::Required generated native file is missing: $file"
+              exit 1
+            fi
+            echo "✓ $file exists"
+          done
+
+      # 14. Parse and validate content of android/app/google-services.json
+      - name: Validate Firebase google-services.json
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'android/app/google-services.json';
+            
+            if (!fs.existsSync(path)) {
+              console.error('::error::Firebase config file not found: ' + path);
+              process.exit(1);
+            }
+            
+            const stats = fs.statSync(path);
+            if (stats.size === 0) {
+              console.error('::error::Firebase config file is empty.');
+              process.exit(1);
+            }
+            
+            let json;
+            try {
+              json = JSON.parse(fs.readFileSync(path, 'utf8'));
+            } catch (err) {
+              console.error('::error::Invalid JSON format: ' + err.message);
+              process.exit(1);
+            }
+            
+            if (!json.project_info || !json.project_info.project_id) {
+              console.error('::error::Missing project_info or project_id in Firebase config.');
+              process.exit(1);
+            }
+            
+            if (!json.client || !Array.isArray(json.client) || json.client.length === 0) {
+              console.error('::error::Missing client array in Firebase config.');
+              process.exit(1);
+            }
+            
+            const client = json.client[0];
+            if (!client.client_info || !client.client_info.android_client_info || !client.client_info.android_client_info.package_name) {
+              console.error('::error::Missing client_info, android_client_info, or package_name in Firebase config.');
+              process.exit(1);
+            }
+            
+            console.log('Firebase project_id: ' + json.project_info.project_id);
+            console.log('Firebase package_name: ' + client.client_info.android_client_info.package_name);
+            console.log('Firebase validation successfully passed!');
+          "
+
+      # 15. Verify that Firebase package matches the Android applicationId
+      - name: Validate Firebase package matches Android package
+        run: |
+          node -e "
+            const fs = require('fs');
+            
+            const firebaseConfig = JSON.parse(fs.readFileSync('android/app/google-services.json', 'utf8'));
+            const firebasePackage = firebaseConfig.client[0].client_info.android_client_info.package_name;
+            
+            const gradleContent = fs.readFileSync('android/app/build.gradle', 'utf8');
+            const appIdMatch = gradleContent.match(/applicationId\s+['\"]([^'\"]+)['\"]/);
+            const namespaceMatch = gradleContent.match(/namespace\s+['\"]([^'\"]+)['\"]/);
+            const gradlePackage = appIdMatch ? appIdMatch[1] : (namespaceMatch ? namespaceMatch[1] : null);
+            
+            if (!gradlePackage) {
+              console.error('::error::Could not extract applicationId or namespace from android/app/build.gradle');
+              process.exit(1);
+            }
+            
+            console.log('Firebase package:');
+            console.log(firebasePackage);
+            console.log('\nGradle package:');
+            console.log(gradlePackage);
+            
+            if (firebasePackage !== gradlePackage) {
+              console.error('::error::Package names do not match!');
+              process.exit(1);
+            }
+            
+            console.log('\nPackage validation passed.');
+          "
+
+      # 16. Log environment and native directory diagnostics
+      - name: Print Build Environment and Native Diagnostics
+        run: |
+          echo "=== System Information ==="
+          echo "Node Version: $(node -v)"
+          echo "Java Version: $(java -version 2>&1 | head -n 1)"
+          echo "Expo CLI Version: $(npx expo --version)"
+          echo "React Native Version: $(npx react-native --version 2>&1 || echo 'Not installed globally')"
+          echo "Gradle Wrapper Version: $(cd android && ./gradlew --version | grep Gradle)"
+          echo ""
+          echo "=== Android Directory Structure (Level 2) ==="
+          if command -v tree &> /dev/null; then
+            tree -L 2 android
+          else
+            find android -maxdepth 2
+          fi
+          echo ""
+          echo "=== Firebase Config Existence check ==="
+          ls -la android/app/google-services.json
+
+      # 17. Print generated Gradle files for debugging
       - name: Print Gradle configuration files
         run: |
           echo "=== android/build.gradle ==="
@@ -126,13 +237,13 @@ jobs:
           echo "=== android/gradle.properties ==="
           cat android/gradle.properties
 
-      # 14. Run Gradle task with stacktrace diagnostics enabled
+      # 18. Run Gradle task with stacktrace diagnostics enabled
       - name: Build Android Debug APK
         run: |
           cd android
           ./gradlew assembleDebug --stacktrace --info --warning-mode all
 
-      # 15. Verify APK was generated successfully before uploading
+      # 19. Verify APK was generated successfully before uploading
       - name: Verify APK existence
         run: |
           APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
@@ -142,7 +253,18 @@ jobs:
           fi
           echo "APK successfully verified!"
 
-      # 16. Upload the compiled APK artifact
+      # 20. Upload compiled Gradle reports if build execution fails
+      - name: Upload Gradle Reports on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-failure-reports
+          path: |
+            android/build/reports/
+            android/app/build/reports/
+            ~/.gradle/daemon/*/log
+
+      # 21. Upload the compiled APK artifact
       - name: Upload Android Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
