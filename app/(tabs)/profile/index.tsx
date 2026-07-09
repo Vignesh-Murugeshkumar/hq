@@ -179,29 +179,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Portal Links (Mock placeholder for Parent/Teacher pages) */}
-        <Text className="font-nunito-extrabold text-heading-sm text-text mb-3">
-          🔑 Portal Access
-        </Text>
-        <Card variant="default" className="p-4 bg-white border-2 border-text rounded-3xl mb-6 shadow-sm gap-3">
-          <TouchableOpacity 
-            onPress={() => router.push('/(teacher)')}
-            activeOpacity={0.8} 
-            className="flex-row items-center p-3 bg-slate-50 border border-slate-200 rounded-2xl"
-          >
-            <Text className="text-xl mr-3">🎒</Text>
-            <Text className="font-nunito-extrabold text-body-md text-text">Teacher Dashboard</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            onPress={() => router.push('/(parent)')}
-            activeOpacity={0.8} 
-            className="flex-row items-center p-3 bg-slate-50 border border-slate-200 rounded-2xl"
-          >
-            <Text className="text-xl mr-3">👨‍👩‍👧</Text>
-            <Text className="font-nunito-extrabold text-body-md text-text">Parent Dashboard</Text>
-          </TouchableOpacity>
-        </Card>
+
 
         {/* Bulletproof Log Out Button */}
         <Button
