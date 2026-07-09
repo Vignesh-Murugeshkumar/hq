@@ -58,7 +58,15 @@
           "photosPermission": "HealthQuest needs access to your photos to upload lesson videos."
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
