@@ -77,6 +77,16 @@ jobs:
         run: |
           cp google-services.json android/app/google-services.json
 
+      - name: Patch Gradle build file with kotlinVersion
+        run: |
+          node -e "
+            const fs = require('fs');
+            let content = fs.readFileSync('android/build.gradle', 'utf8');
+            content = content.replace('ext {', 'ext {\n        kotlinVersion = findProperty(\'android.kotlinVersion\') ?: \'2.0.21\'');
+            fs.writeFileSync('android/build.gradle', content);
+            console.log('Successfully patched android/build.gradle');
+          "
+
       - name: Build Android Debug APK
         run: |
           cd android
