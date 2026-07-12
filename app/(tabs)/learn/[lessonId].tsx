@@ -265,14 +265,14 @@ export default function LessonDetailsScreen() {
             ) : hasQuiz ? (
               <View className="gap-3">
                 {passedQuiz ? (
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onPress={() => {}}
-                    style={{ borderColor: '#10B981' }}
+                  <View 
+                    style={{ borderColor: '#10B981', borderBottomColor: '#059669', borderStyle: 'solid' }}
+                    className="py-3.5 px-6 rounded-button border-2 border-b-4 items-center justify-center bg-transparent opacity-60"
                   >
-                    <Text className="text-emerald-600">Quiz Completed! ✓</Text>
-                  </Button>
+                    <Text className="font-nunito-bold text-center text-label text-emerald-600">
+                      Quiz Completed! ✓
+                    </Text>
+                  </View>
                 ) : (
                   <Button
                     variant="primary"

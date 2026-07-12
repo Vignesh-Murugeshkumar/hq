@@ -19,6 +19,8 @@ export default function ProfileScreen() {
 
   // 1. Subscribe to all achievements
   useEffect(() => {
+    if (!user) return;
+
     const achQuery = query(collection(db, 'achievements'));
     const unsubscribe = onSnapshot(achQuery, (snapshot) => {
       const list: AchievementDocument[] = [];
@@ -33,7 +35,7 @@ export default function ProfileScreen() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [user]);
 
   // 2. Subscribe to user's unlocked achievements
   useEffect(() => {

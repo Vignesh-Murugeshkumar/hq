@@ -36,6 +36,8 @@ export default function LearnScreen() {
 
   // Subscribe to lessons list
   useEffect(() => {
+    if (!user) return;
+
     setLoading(true);
     const lessonsQuery = query(collection(db, 'lessons'));
     
@@ -52,10 +54,12 @@ export default function LearnScreen() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [user]);
 
   // Subscribe to teacher assignments
   useEffect(() => {
+    if (!user) return;
+
     const assignmentsQuery = query(collection(db, 'assignments'));
     const unsubscribe = onSnapshot(assignmentsQuery, (snapshot) => {
       const assignedMap: Record<string, boolean> = {};
@@ -68,7 +72,7 @@ export default function LearnScreen() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [user]);
 
   // Subscribe to user's lesson progress
   useEffect(() => {

@@ -26,6 +26,8 @@ export default function LeaderboardScreen() {
 
   // Subscribe to top student profiles
   useEffect(() => {
+    if (!user) return;
+
     const q = query(
       collection(db, 'profiles'),
       orderBy('totalXP', 'desc'),
@@ -48,7 +50,7 @@ export default function LeaderboardScreen() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [user]);
 
   // Find current user's rank
   const myIndex = rankings.findIndex((p) => p.id === user?.uid);

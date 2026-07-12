@@ -170,7 +170,7 @@ export default function HomeScreen() {
               return (
                 <Text 
                   key={idx} 
-                  className={`text-2xl ${filled ? 'opacity-100 scale-110' : 'opacity-20 grayscale'}`}
+                  className={`text-2xl ${filled ? 'opacity-100' : 'opacity-20 grayscale'}`}
                   style={{ transform: [{ scale: filled ? 1.15 : 1 }] }}
                 >
                   🥛
