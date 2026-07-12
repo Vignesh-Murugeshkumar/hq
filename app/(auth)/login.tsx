@@ -143,9 +143,7 @@ export default function LoginScreen() {
             loading={loading}
             onPress={handleSubmit(onSubmit)}
             className="w-full mt-2"
-          >
-            Log In
-          </Button>
+          >Log In</Button>
         </Card>
 
         {/* Navigation Footer */}

@@ -208,9 +208,7 @@ export default function SignUpScreen() {
             loading={loading}
             onPress={handleSubmit(onSubmit)}
             className="w-full mt-2"
-          >
-            Create Account
-          </Button>
+          >Create Account</Button>
         </Card>
 
         {/* Navigation Footer */}

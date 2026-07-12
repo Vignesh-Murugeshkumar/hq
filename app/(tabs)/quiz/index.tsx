@@ -339,9 +339,7 @@ export default function QuizScreen() {
             </Card>
           </View>
 
-          <Button variant="primary" size="lg" onPress={handleStartQuiz}>
-            Start Quiz!
-          </Button>
+          <Button variant="primary" size="lg" onPress={handleStartQuiz}>Start Quiz!</Button>
         </View>
       </SafeAreaView>
     );
@@ -468,17 +466,13 @@ export default function QuizScreen() {
                 size="lg"
                 onPress={handleCheckAnswer}
                 disabled={selectedOption === null}
-              >
-                Check Answer
-              </Button>
+              >Check Answer</Button>
             ) : (
               <Button
                 variant="primary"
                 size="lg"
                 onPress={handleNextQuestion}
-              >
-                {currentQuestionIdx + 1 === totalQuestions ? 'Finish Quiz' : 'Next Question ➔'}
-              </Button>
+              >{currentQuestionIdx + 1 === totalQuestions ? 'Finish Quiz' : 'Next Question ➔'}</Button>
             )}
           </View>
 
@@ -540,18 +534,14 @@ export default function QuizScreen() {
 
           <View className="gap-3 w-full">
             {!passed ? (
-              <Button variant="primary" size="lg" onPress={handleResetQuiz}>
-                Try Again
-              </Button>
+              <Button variant="primary" size="lg" onPress={handleResetQuiz}>Try Again</Button>
             ) : null}
 
             <Button 
               variant={passed ? "primary" : "outline"} 
               size="lg" 
               onPress={() => router.replace('/(tabs)/learn')}
-            >
-              Back to Learn
-            </Button>
+            >Back to Learn</Button>
           </View>
         </View>
       </SafeAreaView>
