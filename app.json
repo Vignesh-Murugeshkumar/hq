@@ -43,6 +43,7 @@
         }
       ],
       "./plugins/withKotlinVersion",
+      "./plugins/withDisableBundleCompression",
       "expo-router",
       "expo-font",
       "expo-secure-store",
